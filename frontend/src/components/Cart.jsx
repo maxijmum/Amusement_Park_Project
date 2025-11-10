@@ -216,67 +216,115 @@ const Cart = () => {
 
       const customerId = currentUser.customerId || 1; // Use guest ID if not logged in
 
+      console.log("🛒 Checkout started:", {
+        customerId,
+        isLoggedIn,
+        ticketCount: tickets.length,
+        commodityCount: commodities.length,
+        restaurantCount: restaurant.length
+      });
+
       // Use visitDate as purchaseDate for each request
       if (tickets.length > 0) {
-        await Promise.all(tickets.map(t => fetch(`${import.meta.env.VITE_API_URL}/ticket/purchase`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        console.log("🎫 Purchasing tickets:", tickets);
+        await Promise.all(tickets.map(async t => {
+          const requestBody = {
             customerId,
             ticketTypeId: t.ticketTypeId || t.id,
             totalPrice: t.price,
             paymentMethod,
             purchaseDate: visitDate
-          })
-        })));
-      }
+          };
+          console.log("🎫 Ticket request:", requestBody);
 
-      if (commodities.length > 0) {
-        const commodityResults = await Promise.all(commodities.map(async c => {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/commodity/purchase`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/ticket/purchase`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              customerId,
-              commodityTypeId: c.commodityTypeId || c.id,
-              quantity: c.quantity || 1,
-              totalPrice: (c.basePrice || c.price) * (c.quantity || 1),
-              paymentMethod,
-              purchaseDate: visitDate
-            })
+            body: JSON.stringify(requestBody)
           });
 
           if (!response.ok) {
             const errorData = await response.json();
+            console.error("🎫 Ticket purchase failed:", errorData);
+            throw new Error(errorData.message || 'Ticket purchase failed');
+          }
+
+          const result = await response.json();
+          console.log("🎫 Ticket purchase success:", result);
+          return result;
+        }));
+      }
+
+      if (commodities.length > 0) {
+        console.log("🛍️ Purchasing commodities:", commodities);
+        const commodityResults = await Promise.all(commodities.map(async c => {
+          const requestBody = {
+            customerId,
+            commodityTypeId: c.commodityTypeId || c.id,
+            quantity: c.quantity || 1,
+            totalPrice: (c.basePrice || c.price) * (c.quantity || 1),
+            paymentMethod,
+            purchaseDate: visitDate
+          };
+          console.log("🛍️ Commodity request:", requestBody);
+
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/commodity/purchase`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("🛍️ Commodity purchase failed:", errorData);
             throw new Error(errorData.message || 'Commodity purchase failed');
           }
 
-          return response;
+          const result = await response.json();
+          console.log("🛍️ Commodity purchase success:", result);
+          return result;
         }));
       }
 
       if (restaurant.length > 0) {
         // For restaurant orders, send a single order per cart item (simple)
-        await Promise.all(restaurant.map(r => fetch(`${import.meta.env.VITE_API_URL}/restaurant/order`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        console.log("🍽️ Placing restaurant orders:", restaurant);
+        await Promise.all(restaurant.map(async r => {
+          const requestBody = {
             customerId,
             restaurantId: r.restaurantId || 1,
             items: r.items || [{ menuId: r.id, quantity: r.quantity || 1 }],
             totalPrice: r.totalPrice || r.price,
             paymentMethod,
             orderDate: visitDate
-          })
-        })));
+          };
+          console.log("🍽️ Restaurant request:", requestBody);
+
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/restaurant/order`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("🍽️ Restaurant order failed:", errorData);
+            throw new Error(errorData.message || 'Restaurant order failed');
+          }
+
+          const result = await response.json();
+          console.log("🍽️ Restaurant order success:", result);
+          return result;
+        }));
       }
 
+      console.log("✅ All purchases completed successfully!");
       setMessage("Purchase completed successfully!");
       clearCart();
       setCart([]);
       setShowCheckout(false);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Purchase failed:", err);
       // Display the actual error message from the database trigger
       const errorMessage = err.message || "Failed to complete purchase";
       setMessage(errorMessage);
