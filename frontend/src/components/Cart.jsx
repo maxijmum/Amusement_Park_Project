@@ -169,15 +169,26 @@ const Cart = () => {
   };
 
   const handleConfirm = async () => {
+    console.log("🔴 BUTTON CLICKED - handleConfirm started");
+    console.log("🔴 Current cart:", cart);
+    console.log("🔴 Visit date:", visitDate);
+    console.log("🔴 Payment method:", paymentMethod);
+
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    console.log("🔴 Current user from localStorage:", currentUser);
+
+    alert(`Button clicked! Cart has ${cart.length} items. Customer ID: ${currentUser.customerId || 'GUEST'}`);
+
     // Minimal validation
     if (!visitDate) {
+      console.log("🔴 ERROR: No visit date selected");
       setMessage("Please select a visit date");
       return;
     }
 
     // Check if user is guest or logged in
-    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     const isLoggedIn = !!currentUser.customerId;
+    console.log("🔴 Is logged in:", isLoggedIn);
 
     // If guest checkout, require email
     if (!isLoggedIn && !guestEmail) {
@@ -221,7 +232,8 @@ const Cart = () => {
         isLoggedIn,
         ticketCount: tickets.length,
         commodityCount: commodities.length,
-        restaurantCount: restaurant.length
+        restaurantCount: restaurant.length,
+        apiUrl: import.meta.env.VITE_API_URL
       });
 
       // Use visitDate as purchaseDate for each request
