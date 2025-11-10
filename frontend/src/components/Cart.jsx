@@ -50,6 +50,8 @@ export const clearCart = () => {
 
 // --- Cart component ---
 const Cart = () => {
+  console.log("🟢 Cart component loaded/rendered");
+
   const [cart, setCart] = useState(getCart());
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("credit");
@@ -59,6 +61,12 @@ const Cart = () => {
   const [guestEmail, setGuestEmail] = useState("");
   const [isGuest, setIsGuest] = useState(false);
   const [message, setMessage] = useState("");
+
+  console.log("🟢 Cart state:", {
+    cartLength: cart.length,
+    showCheckout,
+    apiUrl: import.meta.env.VITE_API_URL
+  });
 
   useEffect(() => {
     const handler = (e) => setCart(e.detail || getCart());
