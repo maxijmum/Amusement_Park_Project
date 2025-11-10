@@ -257,7 +257,7 @@ const Cart = () => {
 
       if (restaurant.length > 0) {
         // For restaurant orders, send a single order per cart item (simple)
-        await Promise.all(restaurant.map(r => fetch(`${import.meta.env.VITE_API_URL}/restaurant/orders`, {
+        await Promise.all(restaurant.map(r => fetch(`${import.meta.env.VITE_API_URL}/restaurant/order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
