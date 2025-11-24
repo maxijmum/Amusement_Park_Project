@@ -18,6 +18,7 @@ namespace AmusementParkAPI.Data
         public DbSet<TicketSale> TicketSales { get; set; }
         public DbSet<CommodityType> CommodityTypes { get; set; }
         public DbSet<CommoditySale> CommoditySales { get; set; }
+        public DbSet<ShoppingCart> ShoppingCarts { get; set; }
     public DbSet<MenuSale> MenuSales { get; set; }
         
         // Restaurant 
@@ -57,6 +58,7 @@ namespace AmusementParkAPI.Data
             modelBuilder.Entity<TicketSale>().ToTable("ticket_sale");
             modelBuilder.Entity<CommodityType>().ToTable("commodity_type");
             modelBuilder.Entity<CommoditySale>().ToTable("commodity_sale");
+            modelBuilder.Entity<ShoppingCart>().ToTable("shopping_cart");
             modelBuilder.Entity<MenuSale>().ToTable("menu_sale");
             
             // Restaurant tables (YOUR MODULE)
@@ -85,6 +87,7 @@ namespace AmusementParkAPI.Data
             modelBuilder.Entity<TicketSale>().HasKey(t => t.Ticket_ID);
             modelBuilder.Entity<CommodityType>().HasKey(c => c.Commodity_TypeID);
             modelBuilder.Entity<CommoditySale>().HasKey(c => c.Commodity_SaleID);
+            modelBuilder.Entity<ShoppingCart>().HasKey(s => s.CartId);
             modelBuilder.Entity<MenuSale>().HasKey(m => m.Menu_ID);
             
             // Restaurant primary keys 

@@ -50,7 +50,7 @@ export const clearCart = () => {
 
 // --- Cart component ---
 const Cart = () => {
-  const [cart, setCart] = useState(getCart());
+  const [cart, setCart] = useState([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("credit");
   const [visitDate, setVisitDate] = useState("");
@@ -59,16 +59,67 @@ const Cart = () => {
   const [guestEmail, setGuestEmail] = useState("");
   const [isGuest, setIsGuest] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
+  // Fetch cart from database on mount and when updated
   useEffect(() => {
-    const handler = (e) => setCart(e.detail || getCart());
+    fetchCart();
+    const handler = () => fetchCart();
     window.addEventListener("cartUpdated", handler);
     return () => window.removeEventListener("cartUpdated", handler);
   }, []);
 
-  const handleRemove = (key) => {
-    removeFromCart(key);
-    setCart(getCart());
+  const fetchCart = async () => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const visitorId = currentUser.customerId || 1; // Guest ID
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/cart/${visitorId}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // Transform API data to match existing cart item structure
+        const cartItems = data.map(item => ({
+          key: `cart_${item.cartId}`,
+          cartId: item.cartId,
+          type: "commodity",
+          commodityTypeId: item.commodityTypeId,
+          id: item.commodityTypeId,
+          commodityName: item.commodityName,
+          name: item.commodityName,
+          basePrice: item.basePrice,
+          price: item.basePrice,
+          quantity: item.quantity,
+          size: item.size,
+          stockQuantity: item.stockQuantity,
+          imageUrl: item.imageUrl
+        }));
+        setCart(cartItems);
+      }
+    } catch (err) {
+      console.error("Error fetching cart:", err);
+    }
+  };
+
+  const handleRemove = async (key) => {
+    // Extract cartId from key (format: cart_{cartId})
+    const cartId = key.split('_')[1];
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/cart/${cartId}`,
+        { method: "DELETE" }
+      );
+
+      if (response.ok) {
+        // Refresh cart from database
+        await fetchCart();
+      }
+    } catch (err) {
+      console.error("Error removing from cart:", err);
+    }
   };
 
   const getTotal = () => {
@@ -272,14 +323,24 @@ const Cart = () => {
       }
 
       setMessage("Purchase completed successfully!");
-      clearCart();
+
+      // Clear cart from database
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const visitorId = currentUser.customerId || 1;
+      await fetch(`${import.meta.env.VITE_API_URL}/cart/visitor/${visitorId}`, {
+        method: "DELETE"
+      });
+
+      clearCart(); // Also clear any old localStorage cart data
       setCart([]);
       setShowCheckout(false);
     } catch (err) {
       console.error(err);
-      // Display the actual error message from the database trigger
+      // Display the actual error message from the database trigger in RED
       const errorMessage = err.message || "Failed to complete purchase";
-      setMessage(errorMessage);
+      setError(errorMessage);
+      setMessage("");
+      setTimeout(() => setError(""), 7000); // Auto-clear error after 7 seconds
     } finally {
       setLoading(false);
     }
@@ -296,6 +357,12 @@ const Cart = () => {
         </div>
 
         {message && <div className="theme-park-alert theme-park-alert-success">{message}</div>}
+        {error && (
+          <div className="theme-park-alert theme-park-alert-error">
+            <span style={{ fontSize: "24px" }}>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
 
         {cart.length === 0 ? (
           <div className="theme-park-card" style={{ padding: 40, textAlign: "center" }}>

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { addItem } from "../components/Cart";
 import "./ThemePark.css";
 
 const CommodityPurchase = () => {
@@ -63,8 +62,11 @@ const CommodityPurchase = () => {
            name.includes("sweat") || name.includes("pant");
   };
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = async (item) => {
     // Allow guest users to add to cart (no login required)
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const visitorId = currentUser.customerId || 1; // Use guest ID (1) if not logged in
+
     const quantity = quantities[item.commodityTypeId] || 1;
     const isApparel = isApparelItem(item.commodityName);
 
@@ -75,39 +77,62 @@ const CommodityPurchase = () => {
       return;
     }
 
-    // Add to cart (validation happens at checkout via database trigger)
-    const cartItem = {
-      type: "commodity",
-      commodityTypeId: item.commodityTypeId,
-      id: item.commodityTypeId,
-      commodityName: item.commodityName,
-      name: item.commodityName,
-      basePrice: item.basePrice,
-      price: item.basePrice,
-      quantity: quantity,
-      stockQuantity: item.stockQuantity
-    };
-
-    // Add size if apparel item
-    if (isApparel) {
-      cartItem.size = sizes[item.commodityTypeId];
+    // Check if item is out of stock
+    if (item.stockQuantity <= 0) {
+      setError(`❌ ${item.commodityName} is out of stock!`);
+      setMessage("");
+      setTimeout(() => setError(""), 3000);
+      return;
     }
 
-    addItem(cartItem);
+    // Add to cart via API - database trigger will validate stock
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/cart/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          visitorId: visitorId,
+          commodityTypeId: item.commodityTypeId,
+          quantity: quantity,
+          size: isApparel ? sizes[item.commodityTypeId] : null,
+        }),
+      });
 
-    setMessage(`✅ Added ${quantity}x ${item.commodityName}${isApparel ? ` (Size: ${sizes[item.commodityTypeId]})` : ''} to cart!`);
-    setError("");
+      const data = await response.json();
 
-    // Reset quantity and size for this item
-    setQuantities({ ...quantities, [item.commodityTypeId]: 1 });
-    setSizes({ ...sizes, [item.commodityTypeId]: "" });
+      if (!response.ok) {
+        // Database trigger rejected the add to cart (stock validation failed)
+        setError(data.message || "Failed to add to cart");
+        setMessage("");
+        setTimeout(() => setError(""), 7000);
+        return;
+      }
 
-    // Clear message after 3 seconds
-    setTimeout(() => setMessage(""), 3000);
+      // Success!
+      setMessage(`✅ Added ${quantity}x ${item.commodityName}${isApparel ? ` (Size: ${sizes[item.commodityTypeId]})` : ''} to cart!`);
+      setError("");
+
+      // Notify cart to refresh
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
+
+      // Reset quantity and size for this item
+      setQuantities({ ...quantities, [item.commodityTypeId]: 1 });
+      setSizes({ ...sizes, [item.commodityTypeId]: "" });
+
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      setError("Failed to add to cart. Please try again.");
+      setMessage("");
+      setTimeout(() => setError(""), 5000);
+    }
   };
 
-  const handleQuantityChange = (itemId, value) => {
-    const qty = Math.max(1, parseInt(value) || 1);
+  const handleQuantityChange = (itemId, value, maxStock) => {
+    const qty = Math.max(1, Math.min(maxStock, parseInt(value) || 1));
     setQuantities({ ...quantities, [itemId]: qty });
   };
 
@@ -370,7 +395,7 @@ const CommodityPurchase = () => {
                     min="1"
                     max={item.stockQuantity}
                     value={quantities[item.commodityTypeId] || 1}
-                    onChange={(e) => handleQuantityChange(item.commodityTypeId, e.target.value)}
+                    onChange={(e) => handleQuantityChange(item.commodityTypeId, e.target.value, item.stockQuantity)}
                     className="theme-park-input"
                     style={{ textAlign: "center", padding: "8px" }}
                   />
